@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR.js 多標記 GLB 測試</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+        #hint-box {
+            position: fixed;
+            top: 78%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #FDF6EC;
+            color: #7db996;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 999;
+            width: 70%;
+            max-width: 250px;
+            border: 3px solid #E19D2D;
+            font-family: "Microsoft JhengHei", sans-serif;
+            line-height: 1.8;
+        }
+        .a-canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="hint-box">掃描看看桌上的圖案吧<br>可以旋轉放大模型喔</div>
+
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+        <!-- 第一個標記 -->
+        <a-marker type="pattern" url="./static/pattern-1.patt">
+            <a-entity 
+                gltf-model="https://dctdb.github.io/dctdb/concrete_default.glb"
+                scale="2 2 2"  
+                position="0 0 0"
+                rotation="0 180 0"
+                gesture-handler>
+            </a-entity>
+        </a-marker>
+
+        <!-- 第二個標記 -->
+        <a-marker type="pattern" url="./static/pattern-2.patt">
+            <a-entity 
+                gltf-model="https://dctdb.github.io/dctdb/grass_default.glb"
+                scale="2 2 2"  
+                position="0 0 0"
+                rotation="0 180 0"
+                gesture-handler>
+            </a-entity>
+        </a-marker>
+
+        <!-- 第三個標記 -->
+        <a-marker type="pattern" url="./static/pattern-3.patt">
+            <a-entity 
+                gltf-model="https://dctdb.github.io/dctdb/ice_default.glb"
+                scale="2 2 2"  
+                position="0 0 0"
+                rotation="0 180 0"
+                gesture-handler>
+            </a-entity>
+        </a-marker>
+
+        <!-- 第四個標記 -->
+        <a-marker type="pattern" url="./static/pattern-4.patt">
+            <a-entity 
+                gltf-model="https://dctdb.github.io/dctdb/lava_default.glb"
+                scale="2 2 2"  
+                position="0 0 0"
+                rotation="0 180 0"
+                gesture-handler>
+            </a-entity>
+        </a-marker>
+
+        <!-- 第五個標記 -->
+        <a-marker type="pattern" url="./static/pattern-5.patt">
+            <a-entity 
+                gltf-model="https://dctdb.github.io/dctdb/desert_default.glb"
+                scale="2 2 2"  
+                position="0 0 0"
+                rotation="0 180 0"
+                gesture-handler>
+            </a-entity>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        // document.body.addEventListener('click', function () {
+        //     document.getElementById('hint-box').style.display = 'none';
+        // });
+        AFRAME.registerComponent('gesture-handler', {
+            init: function () {
+                this.previousX = null;  
+                this.previousY = null;  
+                this.previousDistance = null;
+                this.el.sceneEl.addEventListener('touchmove', this.onTouchMove.bind(this));
+                this.el.sceneEl.addEventListener('touchstart', this.onTouchStart.bind(this));
+                this.el.sceneEl.addEventListener('touchend', this.onTouchEnd.bind(this));
+                this.el.sceneEl.addEventListener('mousemove', this.onMouseMove.bind(this));
+                this.el.sceneEl.addEventListener('mousedown', this.onMouseDown.bind(this));
+                this.el.sceneEl.addEventListener('mouseup', this.onMouseUp.bind(this));
+                this.el.sceneEl.addEventListener('wheel', this.onMouseWheel.bind(this));
+            },
+            
+            onTouchStart: function (event) {
+                if (event.touches.length === 1) {
+                    this.previousX = event.touches[0].clientX;
+                    this.previousY = event.touches[0].clientY;
+                } else if (event.touches.length === 2) {
+                    this.previousDistance = this.getDistance(event.touches);
+                }
+            },
+
+            onTouchMove: function (event) {
+                if (event.touches.length === 1) {  
+                    this.handleRotation(event.touches[0].clientX, event.touches[0].clientY);
+                } else if (event.touches.length === 2) {  
+                    let currentDistance = this.getDistance(event.touches);
+                    this.handleScaling(currentDistance);
+                }
+            },
+
+            onTouchEnd: function () {
+                this.previousX = null;
+                this.previousY = null;
+                this.previousDistance = null;
+            },
+
+            onMouseDown: function (event) {
+                if (event.buttons === 1) {  
+                    this.previousX = event.clientX;
+                    this.previousY = event.clientY;
+                }
+            },
+
+            onMouseMove: function (event) {
+                if (event.buttons === 1) { 
+                    this.handleRotation(event.clientX, event.clientY);
+                }
+            },
+
+            onMouseUp: function () {
+                this.previousX = null;
+                this.previousY = null;
+            },
+
+            onMouseWheel: function (event) {
+                let model = this.el;
+                let scale = model.getAttribute('scale');
+                let factor = event.deltaY > 0 ? 0.9 : 1.1; 
+                let newScale = {
+                    x: Math.max(0.5, Math.min(5, scale.x * factor)),
+                    y: Math.max(0.5, Math.min(5, scale.y * factor)),
+                    z: Math.max(0.5, Math.min(5, scale.z * factor))
+                };
+                model.setAttribute('scale', newScale);
+            },
+
+            handleRotation: function (currentX, currentY) {
+                let model = this.el;
+                if (this.previousX !== null && this.previousY !== null) {
+                    let deltaX = currentX - this.previousX;
+                    let deltaY = currentY - this.previousY;
+                    let rotation = model.getAttribute('rotation');
+                    
+                    rotation.y += deltaX * 0.05; 
+                    rotation.x -= deltaY * 0.07;  
+                    rotation.x = Math.max(-45, Math.min(45, rotation.x));
+
+                    model.setAttribute('rotation', rotation);
+                }
+                this.previousX = currentX;
+                this.previousY = currentY;
+            },
+
+            getDistance: function (touches) {
+                let dx = touches[0].clientX - touches[1].clientX;
+                let dy = touches[0].clientY - touches[1].clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+
+            handleScaling: function (currentDistance) {
+                let model = this.el;
+                if (this.previousDistance !== null) {
+                    let scale = model.getAttribute('scale');
+                    let factor = currentDistance / this.previousDistance;
+                    let newScale = {
+                        x: Math.max(1, Math.min(4, scale.x * factor)),
+                        y: Math.max(1, Math.min(4, scale.y * factor)),
+                        z: Math.max(1, Math.min(4, scale.z * factor))
+                    };
+                    model.setAttribute('scale', newScale);
+                }
+                this.previousDistance = currentDistance;
+            }
+        });
+    </script>
+</body>
+</html>
